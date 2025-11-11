@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>License Plate OCR</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Montserrat', Arial, sans-serif;
+      background: linear-gradient(120deg, #e2e6ea 0%, #c7d2fe 100%);
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    h1 {
+      margin-top: 60px;
+      color: #263159;
+      letter-spacing: 1px;
+      font-weight: 700;
+      text-shadow: 0 4px 14px #d1d5db4a;
+    }
+    form {
+      background: white;
+      padding: 40px 35px 30px 35px;
+      border-radius: 16px;
+      box-shadow: 0 6px 25px #b4b8d74d;
+      margin-top: 35px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 320px;
+      max-width: 95vw;
+      transition: box-shadow .2s;
+    }
+    form:focus-within {
+      box-shadow: 0 8px 30px #818cf850;
+    }
+    .file-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+    }
+    .file-label i {
+      font-size: 2em;
+      color: #6366f1;
+      margin-bottom: 5px;
+    }
+    .file-label span {
+      color: #38405a;
+      font-weight: 500;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    #imagePreview {
+      width: 160px;
+      margin: 18px auto 4px auto;
+      border-radius: 12px;
+      box-shadow: 0 2px 14px #7986ac35;
+      object-fit: cover;
+      display: none;
+    }
+    button {
+      margin-top: 16px;
+      background: linear-gradient(90deg,#6366f1 40%,#0ea5e9 100%);
+      color: white;
+      border: none;
+      padding: 12px 36px;
+      border-radius: 8px;
+      font-size: 1.08em;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px #b6d0f650;
+      transition: background .18s;
+      outline: none;
+    }
+    button:hover {
+      background: linear-gradient(90deg,#4f46e5 30%,#38bdf8 100%);
+    }
+    #result {
+      margin-top: 38px;
+      font-size: 1.18em;
+      color: #2a2e38;
+      min-height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ecf1fa81;
+      padding: 14px 28px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px #c1c1c14d;
+      max-width: 96vw;
+      min-width: 260px;
+      word-break: break-all;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(20px);
+      pointer-events: none;
+      transition: opacity .35s, transform .4s;
+    }
+    #result.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: all;
+    }
+    @media (max-width: 500px) {
+      form { padding: 22px 7vw; }
+      #result { margin-top: 18px; padding: 12px 4vw; }
+    }
+  </style>
+</head>
+<body>
+  <h1><i class="fas fa-car"></i> License Plate Recognition</h1>
+  <form id="uploadForm">
+    <label for="imageInput" class="file-label">
+      <i class="fa-regular fa-image"></i>
+      <span id="fileLabelText">Selecionar Imagem</span>
+      <input type="file" id="imageInput" name="image" accept="image/*" required>
+    </label>
+    <img id="imagePreview" />
+    <button type="submit"><i class="fas fa-upload"></i> Upload e Reconhecer</button>
+  </form>
+  <div id="result"></div>
+  <script>
+    const form = document.getElementById('uploadForm');
+    const resultDiv = document.getElementById('result');
+    const imageInput = document.getElementById('imageInput');
+    const imagePreview = document.getElementById('imagePreview');
+    const fileLabelText = document.getElementById('fileLabelText');
+
+    imageInput.addEventListener('change', function () {
+      const file = this.files[0];
+      if (file) {
+        fileLabelText.textContent = file.name;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          imagePreview.src = e.target.result;
+          imagePreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      } else {
+        fileLabelText.textContent = 'Selecionar Imagem';
+        imagePreview.style.display = 'none';
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const file = imageInput.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      resultDiv.classList.remove('visible');
+      resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+      resultDiv.classList.add('visible');
+
+      try {
+        const response = await fetch('/api/read-plate/', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+        resultDiv.innerHTML = data.plate_text
+          ? `<span style="color:#0c8839"><i class="fas fa-check-circle"></i> Placa detectada:</span><br><span style="font-size: 1.5em; font-weight:bold">${data.plate_text}</span>`
+          : '<span style="color:#bd1e28"><i class="fas fa-times-circle"></i> Placa não encontrada</span>';
+      } catch (err) {
+        resultDiv.innerHTML = '<span style="color:#bd1e28"><i class="fas fa-exclamation-triangle"></i> Erro ao processar imagem</span>';
+      }
+      resultDiv.classList.add('visible');
+    });
+  </script>
+</body>
+</html>
